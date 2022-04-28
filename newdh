@@ -1,0 +1,152 @@
+#! /bin/bash
+
+## definitions
+DOMAIN=$1
+whoall=$(whois $DOMAIN)
+ns=$(echo "$whoall"| awk -F ":" '/Name Server/ {print $2}')
+nsip=$(dig +short $ns)
+orgs=$(for ip in $nsip; do whois $ip |awk '/OrgName/';done)
+digns=$(dig +shor ns $DOMAIN)
+dignsip=$(dig +short $digns)
+dignsorgs=$(for dnip in $dignsip; do whois $dnip |awk '/OrgName/';done)
+DOMIP=$(dig  +short $DOMAIN)
+MXREC=$(dig +short mx $DOMAIN | awk '{print $2}' | sed 's/\.$//')
+WHODOMIP=$(whois $DOMIP)
+
+#meat and potatoes
+
+echo $DOMAIN
+echo
+
+#checking if domain is registered.
+
+    if
+      echo "$whoall"| grep -i -q "No match for domain"
+    then
+        echo "DOMAIN NOT REGISTERED!";
+    else
+
+
+echo "WHOIS NS RESULTS "
+for i in $ns; do echo $i| awk '{print "\t" $0}'; done
+
+    if
+        echo $ns |grep -qi "inmotion"
+        then
+            echo
+        elif
+            echo $ns |grep -qi "cloudflare"
+            then
+            echo
+        elif
+            echo $ns |grep -qiv "inmotion" && echo $orgs |grep -qiv "inmotion"
+            then
+            echo
+        elif
+            echo $ns |grep -qiv "inmotion" && echo $orgs |grep -qi "inmotion"
+            then
+            echo "    Custom Nameservers on InMotion Hosting."
+            echo
+        else
+            echo "    I have no idea what is going on. Do a proper dig."
+            echo
+    fi
+echo "DIG NS RESULTS"
+## dig ns results
+
+for i in $digns; do echo $i| awk '{print "\t" $0}'; done;
+if
+    echo $digns |grep -qi "inmotion"
+    then
+
+
+        echo
+    elif
+        echo $digns |grep -qi "cloudflare"
+        then
+        echo
+    elif
+        echo $digns |grep -qiv "inmotion" && echo $dignsorgs |grep -qiv "inmotion"
+        then
+        echo
+    elif
+        echo $digns |grep -qiv "inmotion" && echo $dignsorgs |grep -qi "inmotion"
+        then
+        echo "    Custom Nameservers on InMotion Hosting."
+        echo
+    else
+        echo "    I have no idea what is going on. Do a proper dig."
+        echo
+fi
+#Registrar
+     echo "Registrar:";
+        echo "$whoall" | awk -F ":" '/ Registrar:/ {print "\t" $2}'
+        echo "$whoall" | awk -F":" '/Registrar URL:/  {print "\t" $3}'| sed -e 's#//www.##' -e 's#//##'
+    echo;
+
+# is the domain on an inmotion IP address?
+
+echo "InMotion IP?";
+    if
+        echo $WHODOMIP | grep -i -q inmotion;
+        then
+            echo -e "\t\e[38;5;40mYES! \e[0m"
+        else
+            echo -e "\t\e[38;5;196mNO! \e[0m"
+    fi
+
+echo "$DOMIP" |awk '{print "\t" $0}'
+    echo
+# This is to detect if there are more than one A records pointed at different locations. 
+    for ip in $DOMIP
+        do
+            echo $ip
+            whois $ip | awk -F":" '/OrgName:/ {print "\t" $2}' | sed -e 's/ //g'
+        done
+echo
+# MX records
+    echo "MX records:"
+           for mx in "$MXREC";
+            do
+                if echo $mx | grep -q "SOA";
+                    then echo " \t NO MX RECORD";
+
+                    elif echo $mx | grep -q -i "google\|outlook";
+
+                    then echo "Using Email service"|awk '{print "\t" $0}';
+
+                        echo $mx|awk '{print "\tMX Domain:\t" $0}';
+                    else
+                        echo $mx|awk '{print "\tMX Domain:\t" $0}';
+
+
+                        dig +short $mx |awk '{print "\tMX IP:\t\t" $0}';
+
+                            if whois $(dig +short $MXREC)| grep -iq inmotion
+                                then echo "email is pointed at us" |awk '{print "\t" $0}';
+                                else echo "email is not pointed at us."| awk '{print "\t"$0}'
+                            fi;
+
+                fi;
+            done
+    echo
+
+# Hostname for server
+
+    echo "Hostname:";
+    if echo $WHODOMIP| grep -iq 'inmotion\|servconfig\|webhostinghub'
+         then host $DOMIP| awk '/inmotion|servconfig|webhostinghub/ {print "\t"$5}'
+                host $DOMIP| awk '/inmotion|servconfig|webhostinghub/ {print "\t"$5}'| awk -F"." '{print $1}'
+
+    elif echo $dignsorgs | grep -iq "cloudflare"
+        then echo "Cloudflare, not able to run host"| awk '{print "\t" $0}';
+
+    elif echo "$WHODOMIP"| grep -iqv 'inmotion\|servconfig\|webhostinghub'
+        then   echo "HOSTNAME NOT HELPFUL."| awk '{print "\t" $0}'
+    else
+         echo "... what?"
+    fi
+fi
+
+
+echo "These results may not be accurate on the less common TLD's"
