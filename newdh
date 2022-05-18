@@ -14,6 +14,7 @@ MXREC=$(dig +short mx $DOMAIN | awk '{print $2}' | sed 's/\.$//')
 WHODOMIP=$(whois $DOMIP)
 
 #meat and potatoes
+## testing ## 
 
 echo $DOMAIN
 echo
