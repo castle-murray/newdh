@@ -3,7 +3,17 @@
 ## definitions
 DOMAIN=$1
 whoall=$(whois $DOMAIN)
-ns=$(echo "$whoall"| awk -F ":" '/Name Server/ {print $2}')
+## check if domain is registered before continuing, exits the script if not. 
+
+    if
+      echo "$whoall"| grep -i -q "No match for domain"
+    then
+        echo "DOMAIN NOT REGISTERED!";
+    else
+
+## more definitions
+
+ns=$(echo "$whoall"| awk -F ": " '/Name Server/ {print $2}')
 nsip=$(dig +short $ns)
 orgs=$(for ip in $nsip; do whois $ip |awk '/OrgName/';done)
 digns=$(dig +shor ns $DOMAIN)
@@ -14,29 +24,23 @@ MXREC=$(dig +short mx $DOMAIN | awk '{print $2}' | sed 's/\.$//')
 WHODOMIP=$(whois $DOMIP)
 
 #meat and potatoes
-## testing ## 
 
 echo $DOMAIN
 echo
 
-#checking if domain is registered.
 
-    if
-      echo "$whoall"| grep -i -q "No match for domain"
-    then
-        echo "DOMAIN NOT REGISTERED!";
-    else
-
+## I have found that if the whois is showing a different result from dig ns there is a potential issue at the registrar. Therefore it's a good idea to compare them.  
 
 echo "WHOIS NS RESULTS "
 for i in $ns; do echo $i| awk '{print "\t" $0}'; done
 
+## this whole section is just to check if the nameservers are custom nameservers on an InMotion Hosting vps/dedi.
     if
         echo $ns |grep -qi "inmotion"
         then
             echo
         elif
-            echo $ns |grep -qi "cloudflare"
+            echo $ns |grep -qi "cloudflare" ## 
             then
             echo
         elif
@@ -44,7 +48,7 @@ for i in $ns; do echo $i| awk '{print "\t" $0}'; done
             then
             echo
         elif
-            echo $ns |grep -qiv "inmotion" && echo $orgs |grep -qi "inmotion"
+            echo $ns |grep -qiv "inmotion" && echo $orgs |grep -qi "inmotion" ## this is the part that checks for custom nameservers. If the nameserver is not imh but the ip of the ns IS imh. custom nameserver. BOOM.
             then
             echo "    Custom Nameservers on InMotion Hosting."
             echo
@@ -52,8 +56,11 @@ for i in $ns; do echo $i| awk '{print "\t" $0}'; done
             echo "    I have no idea what is going on. Do a proper dig."
             echo
     fi
+    
+
 echo "DIG NS RESULTS"
 ## dig ns results
+## same as the whois results really. more reliable though. 
 
 for i in $digns; do echo $i| awk '{print "\t" $0}'; done;
 if
@@ -80,6 +87,7 @@ if
         echo
 fi
 #Registrar
+
      echo "Registrar:";
         echo "$whoall" | awk -F ":" '/ Registrar:/ {print "\t" $2}'
         echo "$whoall" | awk -F":" '/Registrar URL:/  {print "\t" $3}'| sed -e 's#//www.##' -e 's#//##'
@@ -111,21 +119,24 @@ echo
             do
                 if echo $mx | grep -q "SOA";
                     then echo " \t NO MX RECORD";
+## checking if domain is using an email service
+                    elif echo $mx | grep -q -i "google\|outlook\|proton";
 
-                    elif echo $mx | grep -q -i "google\|outlook";
+                    then echo -e "\e[38;5;40mUsing Email service\e[0m"|awk '{print "\t" $0}';
+                        echo "$mx" |awk '{print "\t\t" $0}';
+## checking if the email is pointed to an InMotion Hosting ip.
 
-                    then echo "Using Email service"|awk '{print "\t" $0}';
-
-                        echo $mx|awk '{print "\tMX Domain:\t" $0}';
                     else
-                        echo $mx|awk '{print "\tMX Domain:\t" $0}';
+                        echo "$mx"|awk '{print "\tMX Domain:\t" $0}';
 
 
                         dig +short $mx |awk '{print "\tMX IP:\t\t" $0}';
 
                             if whois $(dig +short $MXREC)| grep -iq inmotion
-                                then echo "email is pointed at us" |awk '{print "\t" $0}';
-                                else echo "email is not pointed at us."| awk '{print "\t"$0}'
+                                then echo -e "\t\e[38;5;40memail is pointed at InMotion Hosting.\e[0m";
+
+## and if it is not an InMotion Hosting IP...
+                                else echo -e "\t\e[38;5;196memail is not pointed at InMotion Hosting.\e[0m";
                             fi;
 
                 fi;
@@ -135,19 +146,18 @@ echo
 # Hostname for server
 
     echo "Hostname:";
+## checks if the hostname contains InMotion Hosting or similar domain. 
     if echo $WHODOMIP| grep -iq 'inmotion\|servconfig\|webhostinghub'
          then host $DOMIP| awk '/inmotion|servconfig|webhostinghub/ {print "\t"$5}'
                 host $DOMIP| awk '/inmotion|servconfig|webhostinghub/ {print "\t"$5}'| awk -F"." '{print $1}'
 
+## doesn't run host if the nameservers are cloudflare. If it DOES run host on a cloudflare IP it takes forever, so I added this to speed things up. 
+
     elif echo $dignsorgs | grep -iq "cloudflare"
         then echo "Cloudflare, not able to run host"| awk '{print "\t" $0}';
 
-    elif echo "$WHODOMIP"| grep -iqv 'inmotion\|servconfig\|webhostinghub'
-        then   echo "HOSTNAME NOT HELPFUL."| awk '{print "\t" $0}'
-    else
-         echo "... what?"
+    else 
+        echo "HOSTNAME NOT HELPFUL."| awk '{print "\t" $0}';
+		host $DOMIP
     fi
 fi
-
-
-echo "These results may not be accurate on the less common TLD's"
