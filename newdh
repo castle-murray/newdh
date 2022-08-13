@@ -44,7 +44,7 @@ else
     then
         echo
     elif
-    echo $ns |grep -qiv "inmotion" && echo $orgs |grep -qiv "inmotion"
+    echo $ns |grep -qiv "inmotion\|webhostinghub\|servconfig" && echo $orgs |grep -qiv "inmotion"
     then
         echo
     elif
@@ -103,8 +103,10 @@ else
     else
         echo -e "\t\e[38;5;196mNO! \e[0m"
     fi
-    
-    echo -e "\t$DOMIP"
+    for IP in $DOMIP
+    do
+        echo -e "\t$IP"
+    done
     echo
     # This is to detect if there are more than one A records pointed at different locations.
     for ip in $DOMIP
@@ -133,7 +135,7 @@ else
             dig +short $mx |awk '{print "\tMX IP:\t\t" $0}';
             
             if whois $(dig +short $MXREC)| grep -iq inmotion
-            then echo -e "\t\e[38;5;40memail is pointed at InMotion Hosting.\e[0m";
+            then echo -e "\t\e[38;5;40memail is pointed at IMH.\e[0m";
                 if dig +short txt ${DOMAIN} | grep -iq "spf"
                 then echo -e "\t\e[38;5;40mSPF exists\e[0m"
                 else echo -e "\t\e[38;5;196mNO SPF RECORD! \e[0m"
