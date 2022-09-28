@@ -1,5 +1,16 @@
 #! /bin/bash
 
+### Author Sean Murray
+## This dig wrapper can take input in the form of a domain.
+## what distinguishes this dig wrapper from most others is that it can take a domain copied
+## straight from a browser address bar. No need to clean it up or copy only the bit you want.
+## you don't even need to remove the subdomain. or run two separate digs to get the info for the
+## subdomain and the main domain. pop that bad boy in there. it'll do the rest
+
+## https://
+## www.
+## you can even leave the /blargablarg on the end.
+
 
 ## First, let's clean up the domain.
 
@@ -64,6 +75,8 @@ else echo "${stripped} is not a legitimate subdomain."
         fi
     fi
 fi
+
+
 
 ## definitions
 whoall=$(whois $DOMAIN)
